@@ -30,17 +30,27 @@ contract Dex is ERC20 {
         require(minLPToken <= lpTokens, "minimum LP too much");
     }
     
-    function removeLiquidity(uint256 lpTokens, uint256 minAmountX, uint256 minAmountY) external returns (uint amountX, uint amountY) {}
+    function removeLiquidity(uint256 lpTokens, uint256 minAmountX, uint256 minAmountY) external returns (uint amountX, uint amountY) {
+        transferFrom(msg.sender, address(this), lpTokens);
+        
+        (amountX, amountY) = burn(msg.sender);
+        require(amountX >= minAmountX, "INSUFFICIENT_X_AMOUNT");
+        require(amountY >= minAmountY, "INSUFFICIENT_Y_AMOUNT");
+
+    }
     
-    function swap(uint256 amountXIn, uint256 amountYIn, uint256 minAmountOut) external returns (uint amountOut)  {}
+    function swap(uint256 amountXIn, uint256 amountYIn, uint256 minAmountOut) external returns (uint amountOut)  {
+
+    }
 
     function mint(address to, uint256 amountX, uint256 amountY) private returns (uint256 liquidity) {
-        uint256 totalSupply = totalSupply();
-        if (totalSupply == 0) {
+        uint256 _totalSupply = totalSupply();
+
+        if (_totalSupply == 0) {
             liquidity = Math.sqrt(amountX * amountY);
         }
         else {
-            liquidity = Math.min(amountX * totalSupply / reserveX, amountY * totalSupply / reserveY);
+            liquidity = Math.min(amountX * _totalSupply / reserveX, amountY * _totalSupply / reserveY);
         }
 
         require(liquidity > 0, "DEX: INSUFFICIENT_QLIQUIDITY_MINTED");
@@ -48,6 +58,22 @@ contract Dex is ERC20 {
         _mint(to, liquidity);
         update(tokenX.balanceOf(address(this)), tokenY.balanceOf(address(this)));
         return (liquidity);
+    }
+
+    function burn(address to) private returns (uint256 amountX, uint256 amountY) {
+        uint256 balanceX = tokenX.balanceOf(address(this));
+        uint256 balanceY = tokenY.balanceOf(address(this));
+        uint256 liquidity = balanceOf(address(this));
+        uint256 _totalSupply = totalSupply();
+
+        amountX = balanceX * liquidity / _totalSupply;
+        amountY = balanceY * liquidity / _totalSupply;
+        require(amountX > 0 && amountY > 0, "INSUFFICIENT_LIQUIDITY_BURNED");
+        _burn(address(this), liquidity);
+
+        tokenX.transfer(to, amountX);        
+        tokenY.transfer(to, amountY);
+        
     }
 
     function getReserve() private view returns (uint256 _reserveX, uint256 _reserveY) {
@@ -58,5 +84,13 @@ contract Dex is ERC20 {
     function update(uint256 _balanceX, uint256 _balanceY) private {
         reserveX = _balanceX;
         reserveY = _balanceY;
+    }
+
+    function transferFrom(address from, address to, uint256 value) public override returns (bool) {
+        if (to == address(this))
+            _transfer(from, to, value);
+        else
+            super.transferFrom(from, to, value);
+        return true;
     }
 }
