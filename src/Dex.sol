@@ -40,7 +40,28 @@ contract Dex is ERC20 {
     }
     
     function swap(uint256 amountXIn, uint256 amountYIn, uint256 minAmountOut) external returns (uint amountOut)  {
+        require(amountXIn > 0 || amountYIn > 0, "INSUFFICIENT_OUTPUT_AMOUNT");
+        (uint256 _reserveX, uint256 _reserveY) = getReserve();
 
+        if (amountXIn > 0 && amountYIn == 0)
+        {
+            tokenX.transferFrom(msg.sender, address(this), amountXIn);
+            amountOut = _reserveY - (_reserveX * _reserveY) / (_reserveX + amountXIn);
+            amountOut = amountOut * 999 / 1000;
+            tokenY.transfer(msg.sender, amountOut);
+        }
+        else if (amountXIn == 0 && amountYIn > 0)
+        {
+            tokenY.transferFrom(msg.sender, address(this), amountYIn);
+            amountOut = _reserveX - (_reserveX * _reserveY) / (_reserveY + amountYIn);
+            amountOut = amountOut * 999 / 1000;
+            tokenX.transfer(msg.sender, amountOut);
+        }
+        else
+        {
+            revert("INVALID_INPUT");
+        }
+        require(amountOut >= minAmountOut, "INSUFFICIENT_OUTPUT_AMOUNT");
     }
 
     function mint(address to, uint256 amountX, uint256 amountY) private returns (uint256 liquidity) {
@@ -74,6 +95,7 @@ contract Dex is ERC20 {
         tokenX.transfer(to, amountX);        
         tokenY.transfer(to, amountY);
         
+        update(tokenX.balanceOf(address(this)), tokenY.balanceOf(address(this)));
     }
 
     function getReserve() private view returns (uint256 _reserveX, uint256 _reserveY) {
