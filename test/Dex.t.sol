@@ -86,7 +86,6 @@ contract DexTest is Test {
 
     }
 
-
     function testAddLiquidity6() external {
         (bool success, ) = address(dex).call(abi.encodeWithSelector(dex.addLiquidity.selector, 0 ether, 0 ether, 0));
         assertTrue(!success, "AddLiquidity invalid initialization check error - 1");
